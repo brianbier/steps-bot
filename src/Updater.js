@@ -3,6 +3,7 @@ const api = require('./api');
 const moment = require('moment');
 const sgMail = require('@sendgrid/mail');
 const pmEmail = require('./email_templates/PmEmail');
+const { MORNING_CHECKIN, AFTERNOON_CHECKIN } = require('./constants');
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -104,7 +105,7 @@ module.exports = class Updater {
                   checkInTime.time = getNextCheckInDate(
                     frequency || 1,
                     null,
-                    'AFTERNOON'
+                    AFTERNOON_CHECKIN.time
                   );
                 }
               }
@@ -217,12 +218,26 @@ function getNextCheckInDate(days, hours, timeOfDay) {
     return checkInDate.valueOf();
   }
   if (timeOfDay) {
-    if (timeOfDay.toUpperCase() === 'MORNING') {
-      checkInDate = checkInDate.hours(14).minutes(0).seconds(0);
-    } else if (timeOfDay.toUpperCase() === 'AFTERNOON') {
-      checkInDate = checkInDate.hours(18).minutes(30).seconds(0);
+    if (timeOfDay.toUpperCase() === MORNING_CHECKIN.time) {
+      const { hour, minute, second } = MORNING_CHECKIN;
+      checkInDate = checkInDate
+        .hours(hour)
+        .minutes(minute)
+        .seconds(second);
+    } else if (timeOfDay.toUpperCase() === AFTERNOON_CHECKIN.time) {
+      const { hour, minute, second } = AFTERNOON_CHECKIN;
+      checkInDate = checkInDate
+        .hours(hour)
+        .minutes(minute)
+        .seconds(second);
     } else {
-      checkInDate = checkInDate.hours(14).minutes(0).seconds(0); // this is if there's a mistake in the script and no time of day is indicated, default the text to be sent in the morning rather than 12am.
+      const { hour, minute, second } = MORNING_CHECKIN;
+      checkInDate = checkInDate
+        .hours(hour)
+        .minutes(minute)
+        .seconds(second);
+      // this is if there's a mistake in the script and no time of day is indicated,
+      // default the text to be sent in the morning rather than 12am.
     }
   }
   return checkInDate.valueOf();
@@ -253,7 +268,9 @@ function sendHelpEmailToCoach(
   const msg = {
     to: coachEmail,
     from: 'no-reply@helloroo.org',
-    subject: `[Roo] ${client.first_name} ${client.last_name} has requested assistance.`,
+    subject: `[Roo] ${client.first_name} ${
+      client.last_name
+    } has requested assistance.`,
     html: `<html lang="en">
             <head>
               <meta charset="UTF-8">
