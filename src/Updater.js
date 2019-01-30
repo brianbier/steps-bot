@@ -4,6 +4,8 @@ const moment = require('moment');
 const sgMail = require('@sendgrid/mail');
 const pmEmail = require('./email_templates/PmEmail');
 
+const sendEMail = require('./services/Email');
+
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const { TOPICS, STATUS } = require('./constants');
@@ -33,7 +35,17 @@ module.exports = class Updater {
       userAskedToStop,
       requestResolved,
       removeFollowup,
+      coachName,
+      coachEmail,
     } = this.variables;
+/* eslint-disable */
+    const {
+      first_name,
+      last_name,
+      plan_url,
+      email,
+      phone,
+    } = this.client;
 
     if (removeFollowup) {
       this.client.follow_up_date = null;
@@ -59,6 +71,20 @@ module.exports = class Updater {
         return false;
       });
     }
+    
+  if(topic === TOPICS.ULTIMATE_DONE) {
+      const substitution = {
+        coach_name: coachName,
+        coach_email: coachEmail,
+        client_first_name: first_name,
+        client_last_name: last_name,
+        client_email: email,
+        client_phone: phone,
+        client_plan_url: plan_url,
+      };
+      sendEMail.sendCoachEmail(substitution);
+    }
+
     const nextCheckInDate = getNextCheckInDate(days, hours, timeOfDay);
     if (nextCheckInDate) {
       this.client.checkin_times = this.client.checkin_times.filter((checkInTime) => {
