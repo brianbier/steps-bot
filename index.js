@@ -118,40 +118,42 @@ async function messageAllClientsWithOverdueCheckinsOrFollowups() {
     return;
   }
   for (let i = 0; i < users.length; i++) {
-    try {
-      const user = users[i];
-      const platform = user.platform === 'FBOOK' ? constants.FB : constants.SMS;
-      const userPlatformId = user.platform === 'FBOOK' ? user.fb_id : user.phone;
-      if (userPlatformId) { // this line is needed in case a user created a FB account but hasn't messaged on FB (meaning the user.fb_id would be null since the bot has no way of knowing the fb id)
-        if (userShouldReceiveFollowupMessage(user)) { // send user a follow up message
+    if (helpers.isActive(users[i])) { // checks that user's active status is true before sending checkins or followups
+      try {
+        const user = users[i];
+        const platform = user.platform === 'FBOOK' ? constants.FB : constants.SMS;
+        const userPlatformId = user.platform === 'FBOOK' ? user.fb_id : user.phone;
+        if (userPlatformId) { // this line is needed in case a user created a FB account but hasn't messaged on FB (meaning the user.fb_id would be null since the bot has no way of knowing the fb id)
+          if (userShouldReceiveFollowupMessage(user)) { // send user a follow up message
           await run({ // eslint-disable-line
-            platform,
-            userPlatformId,
-            userMessage: 'startprompt',
-            topic: 'followup',
-            isMessageSentFromCheckIn
-          });
-          await sleep(2000); // eslint-disable-line
-        }
-        const eligibleCheckins = getAllCheckinMessagesUserShouldReceive(user);
-        if (platform !== null && userPlatformId !== null) {
-          for (let j = 0; j < eligibleCheckins.length; j++) {
-            const eligibleCheckin = eligibleCheckins[j];
-            await sleep(2000); // eslint-disable-line
-            await run({ // eslint-disable-line
               platform,
               userPlatformId,
-              userMessage: eligibleCheckin.message,
-              topic: eligibleCheckin.topic,
-              recurringTaskId: eligibleCheckin.recurringTaskId,
-              isMessageSentFromCheckIn,
+              userMessage: 'startprompt',
+              topic: 'followup',
+              isMessageSentFromCheckIn
             });
+          await sleep(2000); // eslint-disable-line
+          }
+          const eligibleCheckins = getAllCheckinMessagesUserShouldReceive(user);
+          if (platform !== null && userPlatformId !== null) {
+            for (let j = 0; j < eligibleCheckins.length; j++) {
+              const eligibleCheckin = eligibleCheckins[j];
+            await sleep(2000); // eslint-disable-line
+            await run({ // eslint-disable-line
+                platform,
+                userPlatformId,
+                userMessage: eligibleCheckin.message,
+                topic: eligibleCheckin.topic,
+                recurringTaskId: eligibleCheckin.recurringTaskId,
+                isMessageSentFromCheckIn,
+              });
+            }
           }
         }
+      } catch (e) {
+        console.log('error updating user ' + users[i].id);
+        console.log(users[i]);
       }
-    } catch (e) {
-      console.log('error updating user ' + users[i].id);
-      console.log(users[i]);
     }
   }
 }
@@ -194,7 +196,8 @@ async function run(opts) {
     isMessageSentFromCheckIn,
     coachHelpResponse,
     coachDirectMessage,
-    helpRequestId
+    helpRequestId,
+    loadClientData,
   } = opts;
   const rivebot = new Rivebot();
   await rivebot.loadChatScripts();
@@ -208,15 +211,21 @@ async function run(opts) {
     recurringTaskId,
     coachHelpResponse,
     coachDirectMessage,
-    helpRequestId
+    helpRequestId,
+    loadClientData,
   });
-  try {
-    await chatbot.getResponse();
-  } catch (e) {
-    chatbot.shouldMessageClient = false;
-    chatbot.shouldUpdateClient = false;
-    console.log('error with user ' + chatbot.userPlatformId);
-    console.log(e);
+
+  const loggedInUserData = await chatbot.loadClientData();
+  if (helpers.isActive(loggedInUserData.active)) {
+    console.log(loggedInUserData.active);
+    try {
+      await chatbot.getResponse();
+    } catch (e) {
+      chatbot.shouldMessageClient = false;
+      chatbot.shouldUpdateClient = false;
+      console.log('error with user ' + chatbot.userPlatformId);
+      console.log(e);
+    }
   }
   if (chatbot.shouldMessageClient) {
     const messenger = new Messenger({

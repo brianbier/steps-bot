@@ -114,6 +114,7 @@ module.exports = class Chatbot {
       );
     }
     this.client = userInfo;
+    return this.client;
   }
 
   setUnrecognizedClientResponse() {
