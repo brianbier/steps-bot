@@ -209,6 +209,13 @@ function sendFBMessage(userId, message, isMessageSentFromCheckIn) {
   });
 }
 
+/**
+ * This functions sends SMS to the client from the bot via twilio
+ * @param {number} userId the phone number of the user
+ * @param {object} message the message object
+ * @param {number} orgId The ID of the organization
+ * @returns twilio promise
+ */
 async function sendSMSMessage(userId, message, orgId) {
   const {
     TWILIO_ACCOUNT_SID,
@@ -221,19 +228,19 @@ async function sendSMSMessage(userId, message, orgId) {
   let twilioAuthToken = orgCredentials.auth_token;
   let twilioPhoneNumber = orgCredentials.twilio_number;
   
-  if (NODE_ENV === 'development' || NODE_ENV === 'test') {
+  if (NODE_ENV !== 'production') {
     twilioAccountSid = TWILIO_ACCOUNT_SID;
     twilioAuthToken = TWILIO_AUTH_TOKEN;
     twilioPhoneNumber = TWILIO_NUMBER;
   }
 
   const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
-  const twilioMessage = Object.assign({
+  const twilioMessage = {
     from: twilioPhoneNumber,
-    to: userId
-  }, message);
-  const twilioPromise = twilioClient.messages.create(twilioMessage);
-  return twilioPromise;
+    to: userId,
+    ...message,
+  };
+  return twilioClient.messages.create(twilioMessage);
 }
 
 function sleep(ms) {
